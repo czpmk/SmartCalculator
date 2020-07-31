@@ -21,7 +21,7 @@ class MathInput {
 
     fun read() {
         val inputToList = scanner.nextLine().split(" ")
-        newLine = inputToList.filter {element -> element.isNotEmpty() }.toTypedArray()
+        newLine = inputToList.filter { element -> element.isNotEmpty() }.toTypedArray()
         interpret()
     }
 
@@ -43,7 +43,7 @@ class MathInput {
                 return false
             }
         }
-        return true
+        return arrayOfNumbers.isNotEmpty()
     }
 
 }
@@ -68,8 +68,6 @@ object Calculator {
                 println("Bye!")
                 return true
             }
-        } else {
-            println("Invalid input")
         }
         return false
     }
