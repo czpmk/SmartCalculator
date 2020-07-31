@@ -2,49 +2,91 @@ package calculator
 
 import java.util.*
 
-val input = Scanner(System.`in`)
+val scanner = Scanner(System.`in`)
 
-object Calculations {
+class MathInput {
+    private var newLine = arrayOf<String>()
+    var arrayOfNumbers: Array<Double?> = arrayOf()
+    private var arrayOfCommands: Array<String?> = arrayOf()
+    private val validCommands = arrayOf("+", "-", "*", "/", "/exit")
+    val isCorrect: Boolean
+        get() {
+            return validate()
+        }
 
-    private fun loadVariables(): Pair<Int, Int> {
-        val x = input.nextInt()
-        val y = input.nextInt()
-        return Pair(x, y)
+    val exit: Boolean
+        get() {
+            return "/exit" in arrayOfCommands
+        }
+
+    fun read() {
+        val inputToList = scanner.nextLine().split(" ")
+        newLine = inputToList.filter {element -> element.isNotEmpty() }.toTypedArray()
+        interpret()
     }
 
-    private fun addition() {
-        val (x, y) = loadVariables()
-        Archives.update(x, y, x + y)
-        print(Archives.lastProduct())
-    }
-
-    private fun multiplication() {
-        val (x, y) = loadVariables()
-        Archives.update(x, y, x * y)
-        print(Archives.lastProduct())
-    }
-
-    fun nextAction(action: String) {
-        when (action) {
-            "add" -> addition()
-            "multiply" -> multiplication()
+    private fun interpret() {
+        for (element in newLine) {
+            try {
+                arrayOfNumbers += element.toDouble()
+                arrayOfCommands = arrayOfCommands.plus(element = null)
+            } catch (e: NumberFormatException) {
+                arrayOfNumbers = arrayOfNumbers.plus(element = null)
+                arrayOfCommands += element
+            }
         }
     }
 
+    private fun validate(): Boolean {
+        for (element in arrayOfCommands) {
+            if (element != null && element !in validCommands) {
+                return false
+            }
+        }
+        return true
+    }
+
+}
+
+object Calculator {
+    /** Returns sum of all non-null, numerical input elements*/
+    private fun addition(newInput: MathInput): Double {
+        val newList: List<Double> = newInput.arrayOfNumbers.filterNotNull()
+        return newList.sum()
+    }
+
+    /** Only checks if input contains no forbidden strings or /exit
+     * an prints sum*/
+    fun nextAction(): Boolean {
+        val newInput = MathInput()
+        newInput.read()
+        if (newInput.isCorrect) {
+            Archives.saveInput(newInput)
+            if (!newInput.exit) {
+                println(addition(newInput).toInt())
+            } else {
+                println("Bye!")
+                return true
+            }
+        } else {
+            println("Invalid input")
+        }
+        return false
+    }
+
+    /** Saves every MathInput object*/
     object Archives {
-        private var actionArchives = arrayOf<Array<Int>>()
+        private var inputArchives: Array<MathInput> = arrayOf()
 
-        fun lastProduct(): Int {
-            return actionArchives.last().last()
-        }
-
-        fun update(arg1: Int, arg2: Int, product: Int) {
-            actionArchives += arrayOf(arg1, arg2, product)
+        fun saveInput(newInput: MathInput) {
+            inputArchives += newInput
         }
     }
 }
 
 fun main() {
-    Calculations.nextAction("add")
-    Calculations.nextAction("multiply")
+    // repeat until "/exit" is found
+    while (true) {
+        if (Calculator.nextAction()) break
+    }
 }
