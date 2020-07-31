@@ -45,7 +45,6 @@ class MathInput {
         }
         return arrayOfNumbers.isNotEmpty()
     }
-
 }
 
 object Calculator {
