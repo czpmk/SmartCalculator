@@ -4,31 +4,47 @@ import java.util.*
 
 val input = Scanner(System.`in`)
 
-object Equation {
+object Calculations {
 
-    private fun addition() {
+    private fun loadVariables(): Pair<Int, Int> {
         val x = input.nextInt()
         val y = input.nextInt()
-        val outcome = x + y
-        Archives.update(x, y, outcome)
-        print(outcome)
+        return Pair(x, y)
+    }
+
+    private fun addition() {
+        val (x, y) = loadVariables()
+        Archives.update(x, y, x + y)
+        print(Archives.lastProduct())
+    }
+
+    private fun multiplication() {
+        val (x, y) = loadVariables()
+        Archives.update(x, y, x * y)
+        print(Archives.lastProduct())
     }
 
     fun nextAction(action: String) {
         when (action) {
             "add" -> addition()
+            "multiply" -> multiplication()
         }
     }
 
     object Archives {
         private var actionArchives = arrayOf<Array<Int>>()
 
-        fun update(arg1: Int, arg2: Int, arg3: Int) {
-            actionArchives += arrayOf<Int>(arg1, arg2, arg3)
+        fun lastProduct(): Int {
+            return actionArchives.last().last()
+        }
+
+        fun update(arg1: Int, arg2: Int, product: Int) {
+            actionArchives += arrayOf(arg1, arg2, product)
         }
     }
 }
 
 fun main() {
-    Equation.nextAction("add")
+    Calculations.nextAction("add")
+    Calculations.nextAction("multiply")
 }
