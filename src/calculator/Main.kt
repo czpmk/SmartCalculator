@@ -3,20 +3,31 @@ package calculator
 import java.util.*
 
 val scanner = Scanner(System.`in`)
+val validCommands = arrayOf("+", "-", "*", "/", "/exit", "/help")
 
 class MathInput {
     private var newLine = arrayOf<String>()
     var arrayOfNumbers: Array<Double?> = arrayOf()
     private var arrayOfCommands: Array<String?> = arrayOf()
-    private val validCommands = arrayOf("+", "-", "*", "/", "/exit")
     val isCorrect: Boolean
         get() {
             return validate()
         }
-
     val exit: Boolean
         get() {
-            return "/exit" in arrayOfCommands
+            if ("/exit" in arrayOfCommands) {
+                println("Bye!")
+                return true
+            }
+            return false
+        }
+    val help: Boolean
+        get() {
+            if ("/help" in arrayOfCommands) {
+                println("The program calculates the sum of numbers")
+                return true
+            }
+            return false
         }
 
     fun read() {
@@ -48,36 +59,31 @@ class MathInput {
 }
 
 object Calculator {
+    private var archives = arrayOf<MathInput>()
+
+    /** Saves every MathInput object*/
+    private fun saveInput(newInput: MathInput) {
+        archives += newInput
+    }
+
     /** Returns sum of all non-null, numerical input elements*/
     private fun addition(newInput: MathInput): Double {
         val newList: List<Double> = newInput.arrayOfNumbers.filterNotNull()
         return newList.sum()
     }
 
-    /** Only checks if input contains no forbidden strings or /exit
-     * an prints sum*/
+    /** Only checks if input contains no forbidden strings, /exit or /help
+     * and prints sum*/
     fun nextAction(): Boolean {
         val newInput = MathInput()
         newInput.read()
+        saveInput(newInput)
+        if (newInput.exit) return true
+        if (newInput.help) return false
         if (newInput.isCorrect) {
-            Archives.saveInput(newInput)
-            if (!newInput.exit) {
-                println(addition(newInput).toInt())
-            } else {
-                println("Bye!")
-                return true
-            }
+            println(addition(newInput).toInt())
         }
         return false
-    }
-
-    /** Saves every MathInput object*/
-    object Archives {
-        private var inputArchives: Array<MathInput> = arrayOf()
-
-        fun saveInput(newInput: MathInput) {
-            inputArchives += newInput
-        }
     }
 }
 
