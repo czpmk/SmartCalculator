@@ -3,15 +3,15 @@ package calculator
 import java.util.*
 
 val scanner = Scanner(System.`in`)
-val validCommands = arrayOf("+", "-", "*", "/", "/exit", "/help")
+val mathSymbols = arrayOf('+', '-')
 
 class MathInput {
     private var newLine = arrayOf<String>()
-    var arrayOfNumbers: Array<Double?> = arrayOf()
-    private var arrayOfCommands: Array<String?> = arrayOf()
+    var arrayOfArguments: Array<Double?> = arrayOf()
+    var arrayOfCommands: Array<String?> = arrayOf()
     val isCorrect: Boolean
         get() {
-            return validate()
+            return length % 2 != 0 && validateSyntax() && validateEquation()
         }
     val exit: Boolean
         get() {
@@ -24,10 +24,19 @@ class MathInput {
     val help: Boolean
         get() {
             if ("/help" in arrayOfCommands) {
-                println("The program calculates the sum of numbers")
+                println("The program calculates the sum of numbers. Multiple arithmetic symbols " +
+                        "(e.g. -- = +; --- = -, ++ = +) are supported")
                 return true
             }
             return false
+        }
+    private val length: Int
+        get() {
+            return arrayOfArguments.size
+        }
+    val lastIndex: Int
+        get() {
+            return arrayOfArguments.lastIndex
         }
 
     fun read() {
@@ -39,22 +48,63 @@ class MathInput {
     private fun interpret() {
         for (element in newLine) {
             try {
-                arrayOfNumbers += element.toDouble()
+                arrayOfArguments += element.toDouble()
                 arrayOfCommands = arrayOfCommands.plus(element = null)
             } catch (e: NumberFormatException) {
-                arrayOfNumbers = arrayOfNumbers.plus(element = null)
+                arrayOfArguments = arrayOfArguments.plus(element = null)
                 arrayOfCommands += element
             }
         }
     }
 
-    private fun validate(): Boolean {
-        for (element in arrayOfCommands) {
-            if (element != null && element !in validCommands) {
+    private fun repeatedSymbolCheck(elementsIndex: Int): Boolean {
+        val element = arrayOfCommands[elementsIndex]
+        for (i in element!!) {
+            if (i !in mathSymbols || i != element[0]) {
                 return false
             }
         }
-        return arrayOfNumbers.isNotEmpty()
+        if (element.length > 1) convertRepeatedSymbol(elementsIndex)
+        return true
+    }
+
+    private fun convertRepeatedSymbol(elementsIndex: Int) {
+        val element = arrayOfCommands[elementsIndex]
+        if (element!![0] == '+') {
+            arrayOfCommands[elementsIndex] = "+"
+        } else {
+            if (element.length % 2 == 0) {
+                arrayOfCommands[elementsIndex] = "+"
+            } else {
+                arrayOfCommands[elementsIndex] = "-"
+            }
+        }
+    }
+
+    private fun validateSyntax(): Boolean {
+        for (i in arrayOfCommands.indices) {
+            if (arrayOfCommands[i] != null) {
+                if (!repeatedSymbolCheck(i)) {
+                    return false
+                }
+            }
+        }
+        return arrayOfArguments.isNotEmpty()
+    }
+
+    private fun validateEquation(): Boolean {
+        for (i in arrayOfArguments.indices) {
+            if (i % 2 == 0) {
+                if (arrayOfArguments[i] == null || arrayOfCommands[i] != null) {
+                    return false
+                }
+            } else {
+                if (arrayOfArguments[i] != null || arrayOfCommands[i] == null) {
+                    return false
+                }
+            }
+        }
+        return true
     }
 }
 
@@ -66,22 +116,38 @@ object Calculator {
         archives += newInput
     }
 
-    /** Returns sum of all non-null, numerical input elements*/
-    private fun addition(newInput: MathInput): Double {
-        val newList: List<Double> = newInput.arrayOfNumbers.filterNotNull()
-        return newList.sum()
+    /** Returns sum of arguments in MathInput object by range*/
+    private fun addition(input: MathInput, rangeBegin: Int = 0, rangeEnd: Int = input.lastIndex): Double {
+        var sum = 0.0
+        var nextArgument: Double
+        for (i in (rangeBegin..rangeEnd)) {
+            if (input.arrayOfArguments[i] != null) {
+                nextArgument = input.arrayOfArguments[i]!!
+                if (i - 1 in input.arrayOfCommands.indices) {
+                    if (input.arrayOfCommands[i - 1] == "-") {
+                        nextArgument *= -1
+                    }
+                }
+                sum += nextArgument
+            }
+        }
+        return sum
     }
 
-    /** Only checks if input contains no forbidden strings, /exit or /help
-     * and prints sum*/
+    /** At this point only returns sum of all non-null, numerical input elements*/
+    private fun calculate(): Double {
+        return addition(archives.last())
+    }
+
+    /** Complete pipeline for each equation*/
     fun nextAction(): Boolean {
         val newInput = MathInput()
         newInput.read()
-        saveInput(newInput)
         if (newInput.exit) return true
         if (newInput.help) return false
         if (newInput.isCorrect) {
-            println(addition(newInput).toInt())
+            saveInput(newInput)
+            println(calculate().toInt())
         }
         return false
     }
