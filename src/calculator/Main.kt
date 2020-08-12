@@ -1,33 +1,27 @@
 package calculator
 
-import java.util.*
-import kotlin.math.pow
-
-val scanner = Scanner(System.`in`)
-val mathSymbols = arrayOf("+", "-", "*", "/", "^", "(", ")", "=")
-const val helpMessage = "The program is a calculator that can return results of basic\n" +
-        "calculations and keep in memory previous inputs, commands, and results.\n" +
-        "Supported action: addition, subtraction.\n" +
-        "Type /exit to exit."
-
 // extensions
+fun String.splitWith(delimitersList: List<Char>): MutableList<String> {
+    val tempList = mutableListOf<String>()
+    var lastAdded = -1
+    for (idx in this.indices) {
+        if (this[idx] in delimitersList) {
+            if (idx != (lastAdded + 1)) {
+                tempList.add(this.substring(lastAdded + 1, idx))
+            }
+            tempList.add(this[idx].toString())
+            lastAdded = idx
+        }
+    }
+    if (lastAdded != this.lastIndex) {
+        tempList.add(this.substring(lastAdded + 1, this.lastIndex + 1))
+    }
+    return tempList
+}
+
 fun MutableList<String>.replaceByIdx(toReplace: String, startIdx: Int, lastIdx: Int): MutableList<String> {
     this[startIdx] = toReplace
     return this.filterIndexed { index: Int, _: String -> index !in (startIdx + 1)..(lastIdx) }.toMutableList()
-}
-
-fun MutableList<Boolean>.replaceByIdx(toReplace: Boolean, startIdx: Int, lastIdx: Int): MutableList<Boolean> {
-    this[startIdx] = toReplace
-    return this.filterIndexed { index: Int, _: Boolean -> index !in (startIdx + 1)..(lastIdx) }.toMutableList()
-}
-
-fun MutableList<String>.firstIdx(value: String, startIdx: Int = 0, lastIdx: Int = this.lastIndex): Int {
-    val result = this.subList(startIdx, lastIdx + 1).indexOf(value)
-    return if (result == -1) {
-        result
-    } else {
-        result + startIdx
-    }
 }
 
 fun MutableList<String>.lastIdx(value: String, startIdx: Int = 0, lastIdx: Int = this.lastIndex): Int {
@@ -39,423 +33,266 @@ fun MutableList<String>.lastIdx(value: String, startIdx: Int = 0, lastIdx: Int =
     }
 }
 
+fun MutableList<String>.firstIdx(value: String, startIdx: Int = 0, lastIdx: Int = this.lastIndex): Int {
+    val result = this.subList(startIdx, lastIdx + 1).indexOf(value)
+    return if (result == -1) {
+        result
+    } else {
+        result + startIdx
+    }
+}
 
-class MathLine {
-    private var inputString = ""
-    private var inputList = mutableListOf<String>()
-    private var interpretedList = mutableListOf<Boolean>()
-    var typeList = mutableListOf<String>()
-    val value: MutableList<String>
-        get() {
-            return inputList
+//val scanner = Scanner(System.`in`)
+val mathSymbols = arrayOf("+", "-", "*", "/", "^", "(", ")", "=")
+//const val helpMessage = "The program is a calculator that can return results of basic\n" +
+//        "calculations and keep in memory previous inputs, commands, and results.\n" +
+//        "Supported action: addition, subtraction.\n" +
+//        "Type /exit to exit."
+
+data class MathValue(private val _value: String) {
+    lateinit var type: String
+    var isValid: Boolean = false
+    var value: String = ""
+        set(newValue) {
+            interpretArguments(newValue)
+            field = newValue
         }
-    val correctSyntax: Boolean
-        get() {
-            return false !in interpretedList
-        }
 
-    /** Reads new MathLine with a scanner */
-    fun readLine() {
-        inputString = scanner.nextLine()
-        val tempList = inputString.split(" ").filter { arg -> arg.isNotEmpty() }
-        inputList = tempList.toMutableList()
-
-        splitByMathSigns()
-        initializeTypeMaps()
-        interpretArguments()
+    init {
+        value = _value
     }
 
-    /** Replaces elements with a corresponding result */
-    fun update(toReplace: String, startIdx: Int, lastIdx: Int = -1) {
-        if (lastIdx == -1) {
-            inputList[startIdx] = toReplace
-            interpretedList[startIdx] = false
-            typeList[startIdx] = ""
-        } else {
-            inputList = inputList.replaceByIdx(toReplace, startIdx, lastIdx)
-            interpretedList = interpretedList.replaceByIdx(false, startIdx, lastIdx)
-            typeList = typeList.replaceByIdx("", startIdx, lastIdx)
-        }
-        interpretArguments()
-    }
-
-    private fun splitString(stringToSplit: String): MutableList<String> {
-        val splitChars = arrayOf('*', '/', '^', '(', ')', '=')
-        var tempString = stringToSplit
-        val listOfStrings = mutableListOf<String>()
-        for (idx in stringToSplit.indices) {
-            if (stringToSplit[idx] in splitChars) {
-                if (tempString.substringBefore(stringToSplit[idx]).isNotEmpty()) {
-                    listOfStrings.add(tempString.substringBefore(stringToSplit[idx]))
-                }
-                listOfStrings.add(stringToSplit[idx].toString())
-                tempString = tempString.substringAfter(stringToSplit[idx])
-            }
-        }
-        if (tempString.isNotEmpty()) listOfStrings.add(tempString)
-        return listOfStrings
-    }
-
-    /** Splits each string in inputLine if math symbol (except + and -) is found*/
-    private fun splitByMathSigns() {
-        val tempList = mutableListOf<String>()
-        for (stringIdx in inputList.indices) {
-            if (inputList[stringIdx].length > 1) {
-                for (arg in splitString(inputList[stringIdx])) {
-                    tempList.add(arg)
-                }
-            } else {
-                tempList.add(inputList[stringIdx])
-            }
-        }
-        inputList = tempList
-    }
-
-    /** Initializes interpretedList and typeList with same size as inputList and default values */
-    private fun initializeTypeMaps() {
-        val sizeOfArray = inputList.size
-        interpretedList = MutableList(sizeOfArray) { false }
-        typeList = MutableList(sizeOfArray) { "" }
-    }
-
-    private fun isLiteral(idx: Int): Boolean {
+    private fun isLiteral(newArgument: String): Boolean {
         return try {
-            inputList[idx].toDouble()
-            interpretedList[idx] = true
-            typeList[idx] = "LITERAL"
+            newArgument.toInt()
             true
         } catch (e: NumberFormatException) {
             false
         }
     }
 
-    private fun multiplePlusOrMinus(idx: Int): Boolean {
-        val tempString = inputList[idx]
-        val firstChar = tempString[0]
-        if (firstChar == '+' || firstChar == '-') {
-            for (i in 1 until tempString.length) {
-                if (tempString[i] != firstChar) {
-                    return false
-                }
-            }
-            inputList[idx] = if (tempString.length % 2 == 1 && firstChar == '-') {
-                "-"
-            } else {
-                "+"
-            }
-            return true
-        }
-        return false
+    private fun isMathSymbol(newArgument: String): Boolean {
+        return newArgument in mathSymbols
     }
 
-    private fun isMathSymbol(idx: Int): Boolean {
-        if (inputList[idx] in mathSymbols) {
-            interpretedList[idx] = true
-            typeList[idx] = "MATH"
-            return true
-        } else {
-            if (multiplePlusOrMinus(idx)) {
-                interpretedList[idx] = true
-                typeList[idx] = "MATH"
-                return true
-            }
-            return false
-        }
-    }
-
-    private fun isVariable(idx: Int): Boolean {
-        for (character in inputList[idx]) {
+    private fun isVariable(newArgument: String): Boolean {
+        for (character in newArgument) {
             if (character !in 'a'..'z' && character !in 'A'..'Z') {
                 return false
             }
         }
-        interpretedList[idx] = true
-        typeList[idx] = "VARIABLE"
         return true
     }
 
-    /** returns last index in expression, or last before ")" symbol */
-    fun getLastIdx(startIdx: Int): Int {
-        return if (")" in value.subList(startIdx, value.size)) {
-            // -1 because an expression ends before ")" symbol, not at it
-            value.firstIdx(")", startIdx, value.lastIndex) - 1
-        } else {
-            value.lastIndex
-        }
-    }
-
-    /** returns index of last bracket in expression, or last after start index if specified */
-    fun findBrackets(startIdx: Int = 0): Pair<Boolean, Int> {
-        val openBracketsIdx = value.lastIdx("(", startIdx)
-        return if (openBracketsIdx == -1) {
-            Pair(false, openBracketsIdx)
-        } else {
-            Pair(true, openBracketsIdx)
-        }
-    }
-
-    /** Analyzes each string in inputList, assigns corresponding type in typeList and sets true
-     * in interpretedList if type is correct */
-    private fun interpretArguments() {
-        arrayLoop@ for (idx in inputList.indices) {
-            if (!interpretedList[idx]) {
-                when {
-                    isLiteral(idx) -> continue@arrayLoop
-                    isVariable(idx) -> continue@arrayLoop
-                    isMathSymbol(idx) -> continue@arrayLoop
-                }
+    private fun interpretArguments(newArgument: String) {
+        when {
+            isLiteral(newArgument) -> {
+                type = "LITERAL"
+                isValid = true
             }
-        }
-    }
-
-    /** Contains each initialized variable and its value */
-    companion object Archives {
-        private var variables = mutableMapOf<String, Double>()
-
-        fun containsVar(name: String): Boolean {
-            return variables.containsKey(name)
-        }
-
-        fun updateVar(name: String, value: Double) {
-            if (variables.containsKey(name)) {
-                variables.replace(name, value)
-            } else {
-                variables[name] = value
+            isVariable(newArgument) -> {
+                type = "VARIABLE"
+                isValid = true
             }
-        }
-
-        fun readVar(name: String): Double {
-            return variables.getValue(name)
+            isMathSymbol(newArgument) -> {
+                type = "MATH-SYMBOL"
+                isValid = true
+            }
+            else -> {
+                type = "OTHER"
+                isValid = false
+            }
         }
     }
 }
 
-object Calculator {
-    private var exitCommand = false
+class MathExpression(private var newLine: String) {
+    private var tempList: MutableList<String>
+    private val delimitersList = listOf('+', '-', '*', '/', '^', '(', ')', '=')
+    var infixExpression = mutableListOf<MathValue>()
+    var postfixExpression = mutableListOf<MathValue>()
+    var isValid: Boolean
 
-    private fun isCommand(line: MathLine): Boolean {
-        if (line.value[0] == "/") {
-            if (line.value.size == 2) {
-                when (line.value[1]) {
-                    "exit" -> {
-                        exitCommand = true
-                        println("Bye!")
-                    }
-                    "help" -> println(helpMessage)
-                    else -> println("Unknown command")
-                }
+    init {
+        // converts directly in newLine string
+        convertMultiplePlus()
+        convertMultipleMinus()
+        // creates temporary list while splitting by whitespace
+        tempList = newLine.split(" ").filter { arg -> arg.isNotEmpty() }.toMutableList()
+        //splits by math symbol, but not deletes them
+        splitByMythSymbol()
+        // if - comes after "(" or is a first symbol -> convert the following number to the negative one
+        catchNegativeNumbers()
+
+        toInfixExpression()
+        isValid = validateExpression()
+        if (isValid) toPostfixExpression()
+    }
+
+    private fun convertMultiplePlus() {
+        var newTempLine = ""
+        var numOfSameSigns = 0
+        for (idx in newLine.indices) {
+            if (newLine[idx] == '+') {
+                numOfSameSigns++
             } else {
-                println("Unknown command")
+                if (numOfSameSigns != 0) {
+                    newTempLine += '+'
+                }
+                newTempLine += newLine[idx]
+                numOfSameSigns = 0
             }
+        }
+        if (numOfSameSigns != 0) {
+            newTempLine += '+'
+        }
+        newLine = newTempLine
+    }
+
+    private fun convertMultipleMinus() {
+        var newTempLine = ""
+        var numOfSameSigns = 0
+        for (idx in newLine.indices) {
+            if (newLine[idx] == '-') {
+                numOfSameSigns++
+            } else {
+                if (numOfSameSigns != 0) {
+                    newTempLine += if (numOfSameSigns % 2 == 0) {
+                        '+'
+                    } else {
+                        '-'
+                    }
+                }
+                newTempLine += newLine[idx]
+                numOfSameSigns = 0
+            }
+        }
+        if (numOfSameSigns != 0) {
+            newTempLine += if (numOfSameSigns % 2 == 0) {
+                '+'
+            } else {
+                '-'
+            }
+        }
+        newLine = newTempLine
+    }
+
+    private fun splitByMythSymbol() {
+        val newTempList = mutableListOf<String>()
+        for (idx in tempList.indices) {
+            newTempList.addAll(tempList[idx].splitWith(delimitersList))
+        }
+        tempList = newTempList
+    }
+
+    private fun catchNegativeNumbers() {
+        for (idx in tempList.indices) {
+            if (tempList[idx] == "-") {
+                if (idx == 0 || tempList[idx - 1] == "(") {
+                    if (idx != tempList.lastIndex) {
+                        tempList[idx] = tempList[idx] + tempList[idx + 1]
+                        tempList[idx + 1] = ""
+                    }
+                }
+            }
+        }
+        tempList = tempList.filter { i -> i.isNotEmpty() }.toMutableList()
+    }
+
+    private fun toInfixExpression() {
+        for (i in tempList) {
+            infixExpression.add(MathValue(i))
+        }
+    }
+
+    private fun validateExpression(): Boolean {
+        // is it empty
+        if (tempList.isEmpty()) {
+            println("[S] Empty input")
             return true
-        } else {
-            return false
         }
-    }
 
-    private fun isAssignment(line: MathLine): String {
-        return when {
-            "=" !in line.value -> "NO ASSIGNMENT"
-            else -> "ASSIGNMENT"
+        // drop parenthesis and check if empty
+        val values = infixExpression.filter { i -> i.value != "(" && i.value != ")" }
+        if (values.isEmpty()) {
+            println("[S] Contains only the parenthesis")
+            return true
         }
-    }
 
-    private fun isCorrectExpression(line: MathLine, startIdx: Int): Boolean {
-        val values = line.value.subList(startIdx, line.value.lastIndex + 1)
-        val brackets = values.filter { i -> i == "(" || i == ")" }.toMutableList()
+        // contains only valid arguments
+        for (arg in infixExpression) {
+            if (!arg.isValid) {
+                println("Invalid argument: ${arg.value}")
+                return false
+            }
+        }
 
-        var isLastMathSymbol = true
-        indicesLoop@ for (i in startIdx..line.value.lastIndex) {
-            if (line.value[i] in listOf("(", ")")) {
-                continue@indicesLoop
-            } else {
-                when {
-                    line.typeList[i] in listOf("LITERAL") -> {
-                        if (isLastMathSymbol) {
-                            isLastMathSymbol = false
-                        } else {
-                            return false
-                        }
+        // do every math symbol comes before and after a literal or variable
+        var wasLastValueNumeric = false
+        for (i in values.indices) {
+            when (wasLastValueNumeric) {
+                true -> {
+                    if (values[i].type == "MATH-SYMBOL") {
+                        wasLastValueNumeric = false
+                    } else {
+                        println("Invalid expression")
+                        return false
                     }
-                    line.typeList[i] == "MATH" -> {
-                        if (isLastMathSymbol) {
-                            return false
-                        } else {
-                            isLastMathSymbol = true
-                        }
+                }
+                false -> {
+                    if (values[i].type == "LITERAL" || values[i].type == "VARIABLE") {
+                        wasLastValueNumeric = true
+                    } else {
+                        println("Invalid expression")
+                        return false
                     }
                 }
             }
-
         }
-//      brackets validation
+
+        // does the expression ends with literal
+        if (values.last().type != "LITERAL" && values.last().type == "VARIABLE") {
+            println("Invalid expression: expression ends with operator ${values.last()}")
+            return false
+        }
+
+        // is "=" in forbidden place
+        for (i in (0..(infixExpression.lastIndex)).drop(2)) {
+            if (infixExpression[i].value == "=") {
+                println("Invalid assignment")
+                return false
+            }
+        }
+
+        // brackets
+        val brackets = tempList.filter { i -> i == "(" || i == ")" }.toMutableList()
         while (brackets.isNotEmpty()) {
-            val bracketIdx = brackets.lastIdx("(")
-            when {
-                bracketIdx == -1 -> {
-                    return false
-                }
-                brackets[bracketIdx + 1] != ")" -> {
-                    return false
-                }
-                else -> {
-                    brackets.removeAt(bracketIdx + 1)
-                    brackets.removeAt(bracketIdx)
-                }
+            val lastOpenIdx = brackets.lastIdx("(")
+            if (lastOpenIdx == -1) {
+                println("Invalid brackets")
+                return false
             }
+            val lastCloseIdx = brackets.firstIdx(")", lastOpenIdx)
+            if (lastCloseIdx == -1) {
+                println("Invalid brackets")
+                return false
+            }
+            brackets.removeAt(lastCloseIdx)
+            brackets.removeAt(lastOpenIdx)
         }
         return true
     }
 
-    private fun isValid(line: MathLine): Boolean {
-        when {
-            line.value.isEmpty() -> return false
-            isCommand(line) -> return false
-            // multiple assignments
-            line.value.filter { i -> i == "=" }.count() > 1 -> {
-                println("Invalid assignment")
-                return false
-            }
-            // assignment in a wrong place
-            line.value.size > 2 && line.value.subList(2, line.value.size).contains("=") -> {
-                println("Invalid assignment")
-                return false
-            }
-            //
-            !line.correctSyntax -> {
-                println("Invalid identifier")
-                return false
-            }
-        }
-        val startIdx = if (isAssignment(line) == "ASSIGNMENT") {
-            2
-        } else 0
+    private fun toPostfixExpression() {
 
-        // check if variable has been initialized
-        for (i in startIdx..line.value.lastIndex) {
-            if (line.typeList[i] == "VARIABLE") {
-                if (MathLine.containsVar(line.value[i])) {
-                    line.update(MathLine.readVar(line.value[i]).toString(), i)
-                } else {
-                    println("Unknown variable")
-                    return false
-                }
-            }
-        }
-
-        // check if the expression is valid
-        if (!isCorrectExpression(line, startIdx)) {
-            println("Invalid expression")
-            return false
-        }
-        return true
-    }
-
-    private fun subtractionToNegative(line: MathLine, startIdx: Int) {
-        val lastIdx = line.getLastIdx(startIdx)
-        while (true) {
-            if ("-" in line.value.subList(startIdx, lastIdx)) {
-                val minusIdx = line.value.firstIdx("-", startIdx, lastIdx)
-                val result = line.value[minusIdx + 1].toDouble() * (-1)
-                line.update("+", minusIdx)
-                line.update(result.toString(), minusIdx + 1)
-            } else {
-                break
-            }
-        }
-    }
-
-    private fun addition(line: MathLine, startIdx: Int) {
-        var lastIdx: Int
-        while (true) {
-            lastIdx = line.getLastIdx(startIdx)
-            if ("+" in line.value.subList(startIdx, lastIdx)) {
-                val addIdx = line.value.lastIdx("+", startIdx, lastIdx)
-                val result: Double = line.value[addIdx - 1].toDouble() + line.value[addIdx + 1].toDouble()
-                line.update(result.toString(), addIdx - 1, addIdx + 1)
-            } else {
-                break
-            }
-        }
-    }
-
-    private fun multiplication(line: MathLine, startIdx: Int) {
-        var lastIdx: Int
-        while (true) {
-            lastIdx = line.getLastIdx(startIdx)
-            if ("*" in line.value.subList(startIdx, lastIdx)) {
-                val multiplyIdx = line.value.lastIdx("*", startIdx, lastIdx)
-                val result: Double = line.value[multiplyIdx - 1].toDouble() * line.value[multiplyIdx + 1].toDouble()
-                line.update(result.toString(), multiplyIdx - 1, multiplyIdx + 1)
-                continue
-            } else if ("/" in line.value.subList(startIdx, lastIdx)) {
-                val divideIdx = line.value.lastIdx("/", startIdx, lastIdx)
-                if (line.value[divideIdx + 1].toDouble() == 0.0) {
-                    println("Division by 0!")
-                    break
-                }
-                val result: Double = line.value[divideIdx - 1].toDouble() / line.value[divideIdx + 1].toDouble()
-                line.update(result.toString(), divideIdx - 1, divideIdx + 1)
-                continue
-            } else {
-                break
-            }
-        }
-    }
-
-    private fun power(line: MathLine, startIdx: Int) {
-        var lastIdx: Int
-        while (true) {
-            lastIdx = line.getLastIdx(startIdx)
-            if ("^" in line.value.subList(startIdx, lastIdx)) {
-                val powerIdx = line.value.lastIdx("^", startIdx, lastIdx)
-                val result: Double = line.value[powerIdx - 1].toDouble().pow(line.value[powerIdx + 1].toDouble())
-                line.update(result.toString(), powerIdx - 1, powerIdx + 1)
-            } else break
-        }
-    }
-
-    private fun solve(line: MathLine, startIdx: Int = 0) {
-        do {
-            val (brackets, tempStartIdx) = line.findBrackets(startIdx)
-            if (brackets) {
-                solve(line, tempStartIdx + 1)
-                val result = line.value[tempStartIdx + 1]
-                line.update(result, tempStartIdx, tempStartIdx + 2)
-            } else {
-                subtractionToNegative(line, startIdx)
-                power(line, startIdx)
-                multiplication(line, startIdx)
-                addition(line, startIdx)
-            }
-        } while (brackets)
-    }
-
-    private fun result(line: MathLine) {
-        when (isAssignment(line)) {
-            "ASSIGNMENT" -> {
-                solve(line)
-                MathLine.updateVar(line.value[0], line.value[2].toDouble())
-            }
-            "NO ASSIGNMENT" -> {
-                solve(line)
-                println(line.value[0].toDouble().toInt())
-            }
-        }
-    }
-
-    fun next(): Boolean {
-        val newCalculation = MathLine()
-        newCalculation.readLine()
-        if (isValid(newCalculation)) {
-            result(newCalculation)
-        }
-        return exitCommand
     }
 }
 
 fun main() {
-    while (true) {
-        if (Calculator.next()) break
+    val newExpression = MathExpression("-3+8^((4+3)*2+1)")
+    println()
+    println("[S] Is valid: ${newExpression.isValid}")
+    for (i in newExpression.infixExpression) {
+        print("${i.value} ")
     }
 }
