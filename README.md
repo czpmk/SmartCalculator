@@ -489,3 +489,8 @@ fun String.splitWith(delimitersList: List<Char>): MutableList<String> {
     }
     return tempList
 }
+
+fun MutableList<String>.replaceByIdx(toReplace: String, startIdx: Int, lastIdx: Int): MutableList<String> {
+    this[startIdx] = toReplace
+    return this.filterIndexed { index: Int, _: String -> index !in (startIdx + 1)..(lastIdx) }.toMutableList()
+}

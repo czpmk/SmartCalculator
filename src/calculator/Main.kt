@@ -1,5 +1,7 @@
 package calculator
 
+import java.util.*
+
 // extensions
 fun String.splitWith(delimitersList: List<Char>): MutableList<String> {
     val tempList = mutableListOf<String>()
@@ -17,11 +19,6 @@ fun String.splitWith(delimitersList: List<Char>): MutableList<String> {
         tempList.add(this.substring(lastAdded + 1, this.lastIndex + 1))
     }
     return tempList
-}
-
-fun MutableList<String>.replaceByIdx(toReplace: String, startIdx: Int, lastIdx: Int): MutableList<String> {
-    this[startIdx] = toReplace
-    return this.filterIndexed { index: Int, _: String -> index !in (startIdx + 1)..(lastIdx) }.toMutableList()
 }
 
 fun MutableList<String>.lastIdx(value: String, startIdx: Int = 0, lastIdx: Int = this.lastIndex): Int {
@@ -42,12 +39,12 @@ fun MutableList<String>.firstIdx(value: String, startIdx: Int = 0, lastIdx: Int 
     }
 }
 
-//val scanner = Scanner(System.`in`)
+val scanner = Scanner(System.`in`)
 val mathSymbols = arrayOf("+", "-", "*", "/", "^", "(", ")", "=")
-//const val helpMessage = "The program is a calculator that can return results of basic\n" +
-//        "calculations and keep in memory previous inputs, commands, and results.\n" +
-//        "Supported action: addition, subtraction.\n" +
-//        "Type /exit to exit."
+const val helpMessage = "The program is a calculator that can return results of basic\n" +
+        "calculations and keep in memory previous inputs, commands, and results.\n" +
+        "Supported action: addition, subtraction.\n" +
+        "Type /exit to exit."
 
 data class MathValue(private val _value: String) {
     lateinit var type: String
@@ -111,22 +108,32 @@ class MathExpression(private var newLine: String) {
     private val delimitersList = listOf('+', '-', '*', '/', '^', '(', ')', '=')
     var infixExpression = mutableListOf<MathValue>()
     var postfixExpression = mutableListOf<MathValue>()
-    var isValid: Boolean
+    var isCommand = false
+    var isValid = false
+    var exitCode = false
 
     init {
         // converts directly in newLine string
         convertMultiplePlus()
         convertMultipleMinus()
+
         // creates temporary list while splitting by whitespace
         tempList = newLine.split(" ").filter { arg -> arg.isNotEmpty() }.toMutableList()
-        //splits by math symbol, but not deletes them
+
+        //splits by math symbol, but does not delete them
         splitByMythSymbol()
-        // if - comes after "(" or is a first symbol -> convert the following number to the negative one
+
+        // checks if - before a number is not operation but part of number
         catchNegativeNumbers()
 
         toInfixExpression()
-        isValid = validateExpression()
-        if (isValid) toPostfixExpression()
+        isCommand = catchCommand()
+        if (!isCommand) {
+            isValid = validateExpression()
+            if (isValid) {
+                toPostfixExpression()
+            }
+        }
     }
 
     private fun convertMultiplePlus() {
@@ -188,7 +195,7 @@ class MathExpression(private var newLine: String) {
     private fun catchNegativeNumbers() {
         for (idx in tempList.indices) {
             if (tempList[idx] == "-") {
-                if (idx == 0 || tempList[idx - 1] == "(") {
+                if (idx == 0 || tempList[idx - 1] in listOf("(", "=")) {
                     if (idx != tempList.lastIndex) {
                         tempList[idx] = tempList[idx] + tempList[idx + 1]
                         tempList[idx + 1] = ""
@@ -199,15 +206,29 @@ class MathExpression(private var newLine: String) {
         tempList = tempList.filter { i -> i.isNotEmpty() }.toMutableList()
     }
 
-    private fun toInfixExpression() {
-        for (i in tempList) {
-            infixExpression.add(MathValue(i))
+    private fun catchCommand(): Boolean {
+        return if (tempList.isNotEmpty() && tempList[0] == "/") {
+            if (tempList.size == 2) {
+                when (tempList[1]) {
+                    "exit" -> {
+                        exitCode = true
+                        println("Bye!")
+                    }
+                    "help" -> println(helpMessage)
+                    else -> println("Invalid command")
+                }
+            } else {
+                println("Invalid command")
+            }
+            true
+        } else {
+            false
         }
     }
 
     private fun validateExpression(): Boolean {
         // is it empty
-        if (tempList.isEmpty()) {
+        if (infixExpression.isEmpty()) {
             println("[S] Empty input")
             return true
         }
@@ -227,7 +248,7 @@ class MathExpression(private var newLine: String) {
             }
         }
 
-        // do every math symbol comes before and after a literal or variable
+        // do every math symbol comes after a literal or variable
         var wasLastValueNumeric = false
         for (i in values.indices) {
             when (wasLastValueNumeric) {
@@ -251,8 +272,8 @@ class MathExpression(private var newLine: String) {
         }
 
         // does the expression ends with literal
-        if (values.last().type != "LITERAL" && values.last().type == "VARIABLE") {
-            println("Invalid expression: expression ends with operator ${values.last()}")
+        if (values.last().type != "LITERAL" && values.last().type != "VARIABLE") {
+            println("Invalid expression: expression ends with operator: ${values.last().value}")
             return false
         }
 
@@ -283,16 +304,96 @@ class MathExpression(private var newLine: String) {
         return true
     }
 
+    private fun precedence(argument: MathValue): Int {
+        return when (argument.value) {
+            "+" -> 1
+            "-" -> 1
+            "*" -> 2
+            "/" -> 2
+            "^" -> 3
+            else -> 0
+        }
+    }
+
+    private fun toInfixExpression() {
+        for (i in tempList) {
+            infixExpression.add(MathValue(i))
+        }
+    }
+
     private fun toPostfixExpression() {
+        val stack = mutableListOf<MathValue>()
+        for (i in infixExpression.indices) {
+            when (infixExpression[i].type) {
+                "LITERAL" -> postfixExpression.add(infixExpression[i])
+                "VARIABLE" -> postfixExpression.add(infixExpression[i])
+                "MATH-SYMBOL" -> {
+                    when {
+                        stack.isEmpty() ->
+                            stack.add(infixExpression[i])
+
+                        stack.last().value == "(" ->
+                            stack.add(infixExpression[i])
+
+                        infixExpression[i].value == "(" ->
+                            stack.add(infixExpression[i])
+
+                        infixExpression[i].value == ")" -> {
+                            while (stack.last().value != "(") {
+                                postfixExpression.add(stack.last())
+                                stack.removeAt(stack.lastIndex)
+                            }
+                        }
+                        precedence(infixExpression[i]) > precedence(stack.last()) ->
+                            stack.add(infixExpression[i])
+
+                        precedence(infixExpression[i]) <= precedence(stack.last()) -> {
+                            precedenceLoop@ while (stack.isNotEmpty()) {
+                                if (stack.last().value == "(") break@precedenceLoop
+                                if (precedence(infixExpression[i]) > precedence(stack.last())) break@precedenceLoop
+                                postfixExpression.add(stack.last())
+                                stack.removeAt(stack.lastIndex)
+                            }
+                            stack.add(infixExpression[i])
+                        }
+                    }
+                }
+            }
+        }
+        while (stack.isNotEmpty()) {
+            if (stack.last().value !in listOf("(", ")")) {
+                postfixExpression.add(stack.last())
+            }
+            stack.removeAt(stack.lastIndex)
+        }
+    }
+}
+
+object Calculator {
+    fun next(): Boolean {
+        val nextExpression = MathExpression(scanner.nextLine())
+        if (!nextExpression.isCommand) {
+            if (nextExpression.isValid) {
+                solve(nextExpression.postfixExpression)
+//                for (i in nextExpression.infixExpression) {
+//                    print("${i.value} ")
+//                }
+//                println()
+//                for (i in nextExpression.postfixExpression) {
+//                    print("${i.value} ")
+//                }
+            }
+        }
+        return nextExpression.exitCode
+    }
+
+    fun solve(expression: MutableList<MathValue>) {
 
     }
 }
 
 fun main() {
-    val newExpression = MathExpression("-3+8^((4+3)*2+1)")
-    println()
-    println("[S] Is valid: ${newExpression.isValid}")
-    for (i in newExpression.infixExpression) {
-        print("${i.value} ")
+    while (true) {
+        if (Calculator.next()) break
     }
 }
