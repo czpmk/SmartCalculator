@@ -1,13 +1,14 @@
 package calculator
 
 import java.util.*
+import kotlin.math.pow
 
 // extensions
-fun String.splitWith(delimitersList: List<Char>): MutableList<String> {
+fun String.splitWith(delimitersList: List<String>): MutableList<String> {
     val tempList = mutableListOf<String>()
     var lastAdded = -1
     for (idx in this.indices) {
-        if (this[idx] in delimitersList) {
+        if (this[idx].toString() in delimitersList) {
             if (idx != (lastAdded + 1)) {
                 tempList.add(this.substring(lastAdded + 1, idx))
             }
@@ -39,8 +40,24 @@ fun MutableList<String>.firstIdx(value: String, startIdx: Int = 0, lastIdx: Int 
     }
 }
 
+fun MutableList<MathValue>.firstIdxOf(value: String, startIdx: Int = 0, lastIdx: Int = this.lastIndex): Int {
+    val result = this.subList(startIdx, lastIdx + 1).indexOfFirst { i -> i.type == value }
+    return if (result == -1) {
+        result
+    } else {
+        result + startIdx
+    }
+}
+
+fun MutableList<MathValue>.replaceByIdx(value: String, startIdx: Int, lastIdx: Int) {
+    this[startIdx] = MathValue(value)
+    for (i in lastIdx downTo (startIdx + 1)) {
+        this.removeAt(i)
+    }
+}
+
 val scanner = Scanner(System.`in`)
-val mathSymbols = arrayOf("+", "-", "*", "/", "^", "(", ")", "=")
+val mathSymbols = listOf("+", "-", "*", "/", "^", "(", ")", "=")
 const val helpMessage = "The program is a calculator that can return results of basic\n" +
         "calculations and keep in memory previous inputs, commands, and results.\n" +
         "Supported action: addition, subtraction.\n" +
@@ -105,8 +122,7 @@ data class MathValue(private val _value: String) {
 
 class MathExpression(private var newLine: String) {
     private var tempList: MutableList<String>
-    private val delimitersList = listOf('+', '-', '*', '/', '^', '(', ')', '=')
-    var infixExpression = mutableListOf<MathValue>()
+    private var infixExpression = mutableListOf<MathValue>()
     var postfixExpression = mutableListOf<MathValue>()
     var isCommand = false
     var isValid = false
@@ -187,7 +203,7 @@ class MathExpression(private var newLine: String) {
     private fun splitByMythSymbol() {
         val newTempList = mutableListOf<String>()
         for (idx in tempList.indices) {
-            newTempList.addAll(tempList[idx].splitWith(delimitersList))
+            newTempList.addAll(tempList[idx].splitWith(mathSymbols))
         }
         tempList = newTempList
     }
@@ -229,14 +245,12 @@ class MathExpression(private var newLine: String) {
     private fun validateExpression(): Boolean {
         // is it empty
         if (infixExpression.isEmpty()) {
-            println("[S] Empty input")
             return true
         }
 
         // drop parenthesis and check if empty
         val values = infixExpression.filter { i -> i.value != "(" && i.value != ")" }
         if (values.isEmpty()) {
-            println("[S] Contains only the parenthesis")
             return true
         }
 
@@ -273,7 +287,7 @@ class MathExpression(private var newLine: String) {
 
         // does the expression ends with literal
         if (values.last().type != "LITERAL" && values.last().type != "VARIABLE") {
-            println("Invalid expression: expression ends with operator: ${values.last().value}")
+            println("Invalid expression: no operands after: ${values.last().value}")
             return false
         }
 
@@ -370,25 +384,126 @@ class MathExpression(private var newLine: String) {
 }
 
 object Calculator {
+    private var expression = mutableListOf<MathValue>()
+
     fun next(): Boolean {
         val nextExpression = MathExpression(scanner.nextLine())
         if (!nextExpression.isCommand) {
             if (nextExpression.isValid) {
-                solve(nextExpression.postfixExpression)
-//                for (i in nextExpression.infixExpression) {
-//                    print("${i.value} ")
-//                }
-//                println()
-//                for (i in nextExpression.postfixExpression) {
-//                    print("${i.value} ")
-//                }
+                expression = nextExpression.postfixExpression
+                if (expression.isNotEmpty()) {
+                    solve()
+                }
             }
         }
         return nextExpression.exitCode
     }
 
-    fun solve(expression: MutableList<MathValue>) {
+    private fun replaceVariablesWithValues(): Boolean {
+        var newValue: String
+        for (i in expression.indices) {
+            if (expression[i].type == "VARIABLE") {
+                if (Archives.exist(expression[i].value)) {
+                    newValue = Archives.getValue(expression[i].value)
+                    expression[i] = MathValue(newValue)
+                } else {
+                    println("Invalid assignment: variable '${expression[i].value}' does not exist")
+                    return false
+                }
+            }
+        }
+        return true
+    }
 
+    private fun solve(): Boolean {
+        var isAssignment = false
+        var variableName = ""
+
+        if (expression.last().value == "=") {
+            if (expression.first().type != "VARIABLE") {
+                println("Invalid assignment: can not assign to: '${expression.first().value}'")
+                return false
+            } else {
+                variableName = expression[0].value
+                expression.removeAt(expression.lastIndex)
+                expression.removeAt(0)
+                isAssignment = true
+            }
+        }
+
+        if (!replaceVariablesWithValues()) return false
+        val result = getResult()
+        if (isAssignment) {
+            Archives.update(variableName, result)
+        } else {
+            println(result)
+        }
+        return true
+    }
+
+    private fun getResult(): String {
+        var nextOperator: Int
+        var result = 0
+        var firstOperand: Int
+        var secondOperand: Int
+        while (expression.size != 1) {
+            nextOperator = expression.firstIdxOf("MATH-SYMBOL")
+            if (nextOperator < 2) {
+                return "Invalid expression"
+            }
+            firstOperand = expression[nextOperator - 2].value.toInt()
+            secondOperand = expression[nextOperator - 1].value.toInt()
+            when (expression[nextOperator].value) {
+                "+" -> {
+                    result = firstOperand + secondOperand
+                }
+                "-" -> {
+                    result = firstOperand - secondOperand
+                }
+                "*" -> {
+                    result = firstOperand * secondOperand
+                }
+                "/" -> {
+                    if (secondOperand == 0) {
+                        return "Division by 0!"
+                    }
+                    result = firstOperand / secondOperand
+                }
+                "^" -> {
+                    result = firstOperand.toDouble().pow(secondOperand).toInt()
+                }
+            }
+            expression.replaceByIdx(result.toString(), nextOperator - 2, nextOperator)
+        }
+        return if (expression.size == 1) {
+            expression[0].value
+        } else {
+            print(expression)
+            "Invalid expression"
+        }
+    }
+
+    private fun print(expression: MutableList<MathValue>) {
+        for (i in expression) {
+            print("${i.value} ")
+        }
+        println()
+    }
+
+    object Archives{
+        private val variable = mutableMapOf<String, String>()
+
+        fun exist(name: String): Boolean {
+            return variable.containsKey(name)
+        }
+
+        fun getValue(name: String): String {
+            return variable[name]!!
+        }
+
+        fun update(name: String, value: String) {
+            variable[name] = value
+        }
     }
 }
 
