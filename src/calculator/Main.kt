@@ -1,5 +1,7 @@
 package calculator
 
+import java.lang.NumberFormatException
+import java.math.BigInteger
 import java.util.*
 import kotlin.math.pow
 
@@ -76,12 +78,16 @@ data class MathValue(private val _value: String) {
     }
 
     private fun isLiteral(newArgument: String): Boolean {
-        return try {
-            newArgument.toInt()
-            true
-        } catch (e: NumberFormatException) {
-            false
+        if (newArgument[0] in '0'..'9' || newArgument[0] == '-' && newArgument.length > 1) {
+            for (i in 1 until newArgument.length) {
+                if (newArgument[i] !in '0'..'9') {
+                    return false
+                }
+            }
+        } else {
+            return false
         }
+        return true
     }
 
     private fun isMathSymbol(newArgument: String): Boolean {
@@ -99,16 +105,16 @@ data class MathValue(private val _value: String) {
 
     private fun interpretArguments(newArgument: String) {
         when {
+            isMathSymbol(newArgument) -> {
+                type = "MATH-SYMBOL"
+                isValid = true
+            }
             isLiteral(newArgument) -> {
                 type = "LITERAL"
                 isValid = true
             }
             isVariable(newArgument) -> {
                 type = "VARIABLE"
-                isValid = true
-            }
-            isMathSymbol(newArgument) -> {
-                type = "MATH-SYMBOL"
                 isValid = true
             }
             else -> {
@@ -142,6 +148,7 @@ class MathExpression(private var newLine: String) {
         catchNegativeNumbers()
 
         toInfixExpression()
+
         isCommand = catchCommand()
         if (!isCommand) {
             isValid = validateExpression()
@@ -269,7 +276,7 @@ class MathExpression(private var newLine: String) {
                     if (values[i].type == "MATH-SYMBOL") {
                         wasLastValueNumeric = false
                     } else {
-                        println("Invalid expression")
+                        println("Invalid expression (order)")
                         return false
                     }
                 }
@@ -372,7 +379,8 @@ class MathExpression(private var newLine: String) {
             }
         }
         while (stack.isNotEmpty()) {
-            postfixExpression.add(stack.last())
+            if (stack.last().value !in listOf("(", ")"))
+                postfixExpression.add(stack.last())
             stack.removeAt(stack.lastIndex)
         }
     }
@@ -427,8 +435,8 @@ object Calculator {
         }
 
         if (!replaceVariablesWithValues()) return false
-        val result = getResult()
-        if (isAssignment) {
+        val (result, isResultValid) = getResult()
+        if (isAssignment && isResultValid) {
             Archives.update(variableName, result)
         } else {
             println(result)
@@ -436,45 +444,55 @@ object Calculator {
         return true
     }
 
-    private fun getResult(): String {
+    private fun getResult(): Pair<String, Boolean> {
         var nextOperator: Int
-        var result = 0
-        var firstOperand: Int
-        var secondOperand: Int
+        var result = ""
         while (expression.size != 1) {
             nextOperator = expression.firstIdxOf("MATH-SYMBOL")
             if (nextOperator < 2) {
-                return "Invalid expression"
+                return Pair("Invalid expression", false)
             }
-            firstOperand = expression[nextOperator - 2].value.toInt()
-            secondOperand = expression[nextOperator - 1].value.toInt()
+            val firstOperand = BigInteger(expression[nextOperator - 2].value)
+            val secondOperand = BigInteger(expression[nextOperator - 1].value)
             when (expression[nextOperator].value) {
                 "+" -> {
-                    result = firstOperand + secondOperand
+                    result = (firstOperand + secondOperand).toString()
                 }
                 "-" -> {
-                    result = firstOperand - secondOperand
+                    result = (firstOperand - secondOperand).toString()
                 }
                 "*" -> {
-                    result = firstOperand * secondOperand
+                    result = (firstOperand.multiply(secondOperand)).toString()
                 }
                 "/" -> {
-                    if (secondOperand == 0) {
-                        return "Division by 0!"
+                    if (secondOperand == BigInteger.ZERO) {
+                        return Pair("Division by 0!", false)
                     }
-                    result = firstOperand / secondOperand
+                    result = (firstOperand.div(secondOperand)).toString()
                 }
                 "^" -> {
-                    result = firstOperand.toDouble().pow(secondOperand).toInt()
+                    try {
+                        secondOperand.toString().toInt()
+                    } catch (e: NumberFormatException) {
+                        return Pair("Invalid exponent: operand $secondOperand is to big, max = ${Int.MAX_VALUE}", false)
+                    }
+                    result = if (secondOperand.toInt() < 0) {
+                        if (firstOperand.toDouble().toInt() == 0) {
+                            return Pair("Invalid operation: $firstOperand ^ $secondOperand : division by 0!", false)
+                        }
+                        firstOperand.toDouble().pow(secondOperand.toInt()).toInt().toString()
+                    } else {
+                        (firstOperand.pow(secondOperand.toInt())).toString()
+                    }
                 }
             }
-            expression.replaceByIdx(result.toString(), nextOperator - 2, nextOperator)
+            expression.replaceByIdx(result, nextOperator - 2, nextOperator)
         }
         return if (expression.size == 1) {
-            expression[0].value
+            Pair(expression[0].value, true)
         } else {
             print(expression)
-            "Invalid expression"
+            Pair("Invalid expression (solve)", false)
         }
     }
 
