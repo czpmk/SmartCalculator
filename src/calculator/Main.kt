@@ -51,9 +51,8 @@ fun MutableList<MathValue>.firstIdxOf(value: String, startIdx: Int = 0, lastIdx:
 
 fun MutableList<MathValue>.replaceByIdx(value: String, startIdx: Int, lastIdx: Int) {
     this[startIdx] = MathValue(value)
-    for (i in lastIdx downTo (startIdx + 1)) {
-        this.removeAt(i)
-    }
+    this.removeAt(lastIdx - 1)
+    this.removeAt(lastIdx - 1)
 }
 
 val scanner = Scanner(System.`in`)
@@ -231,12 +230,12 @@ class MathExpression(private var newLine: String) {
                         println("Bye!")
                     }
                     "help" -> println(helpMessage)
-                    else -> println("Invalid command")
+                    else -> println("Unknown command")
                 }
+                true
             } else {
-                println("Invalid command")
+                false
             }
-            true
         } else {
             false
         }
@@ -343,10 +342,7 @@ class MathExpression(private var newLine: String) {
                 "VARIABLE" -> postfixExpression.add(infixExpression[i])
                 "MATH-SYMBOL" -> {
                     when {
-                        stack.isEmpty() ->
-                            stack.add(infixExpression[i])
-
-                        stack.last().value == "(" ->
+                        stack.isEmpty() || stack.last().value == "(" ->
                             stack.add(infixExpression[i])
 
                         infixExpression[i].value == "(" ->
@@ -357,6 +353,7 @@ class MathExpression(private var newLine: String) {
                                 postfixExpression.add(stack.last())
                                 stack.removeAt(stack.lastIndex)
                             }
+                            stack.removeAt(stack.lastIndex)
                         }
                         precedence(infixExpression[i]) > precedence(stack.last()) ->
                             stack.add(infixExpression[i])
@@ -375,9 +372,7 @@ class MathExpression(private var newLine: String) {
             }
         }
         while (stack.isNotEmpty()) {
-            if (stack.last().value !in listOf("(", ")")) {
-                postfixExpression.add(stack.last())
-            }
+            postfixExpression.add(stack.last())
             stack.removeAt(stack.lastIndex)
         }
     }
@@ -407,7 +402,7 @@ object Calculator {
                     newValue = Archives.getValue(expression[i].value)
                     expression[i] = MathValue(newValue)
                 } else {
-                    println("Invalid assignment: variable '${expression[i].value}' does not exist")
+                    println("Invalid assignment: '${expression[i].value}' does not exist")
                     return false
                 }
             }
@@ -483,14 +478,7 @@ object Calculator {
         }
     }
 
-    private fun print(expression: MutableList<MathValue>) {
-        for (i in expression) {
-            print("${i.value} ")
-        }
-        println()
-    }
-
-    object Archives{
+    object Archives {
         private val variable = mutableMapOf<String, String>()
 
         fun exist(name: String): Boolean {
