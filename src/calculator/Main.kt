@@ -5,6 +5,8 @@ import java.math.BigInteger
 import java.util.*
 import kotlin.math.pow
 
+val scanner = Scanner(System.`in`)
+
 // extensions
 fun String.splitWith(delimitersList: List<String>): MutableList<String> {
     val tempList = mutableListOf<String>()
@@ -56,14 +58,6 @@ fun MutableList<MathValue>.replaceByIdx(value: String, startIdx: Int, lastIdx: I
     this.removeAt(lastIdx - 1)
     this.removeAt(lastIdx - 1)
 }
-
-val scanner = Scanner(System.`in`)
-val mathSymbols = listOf("+", "-", "*", "/", "^", "(", ")", "=")
-const val helpMessage = "The program is a calculator that can return results of basic\n" +
-        "calculations and keep in memory previous inputs, commands, and results.\n" +
-        "Supported action: addition, subtraction.\n" +
-        "Type /exit to exit."
-
 
 object Calculator {
     private var expression = mutableListOf<MathValue>()

@@ -1,6 +1,7 @@
 package calculator
 
 data class MathValue(private val _value: String) {
+    private val mathSymbols = listOf("+", "-", "*", "/", "^", "(", ")", "=")
     lateinit var type: String
     var isValid: Boolean = false
     var value: String = ""

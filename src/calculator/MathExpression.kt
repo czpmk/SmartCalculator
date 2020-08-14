@@ -1,6 +1,11 @@
 package calculator
 
 class MathExpression(private var newLine: String) {
+    private val mathSymbols = listOf("+", "-", "*", "/", "^", "(", ")", "=")
+    private val helpMessage = "The program is a calculator that can return results of basic\n" +
+            "calculations and keep in memory previous inputs, commands, and results.\n" +
+            "Supported action: addition, subtraction.\n" +
+            "Type /exit to exit."
     private var tempList: MutableList<String>
     private var infixExpression = mutableListOf<MathValue>()
     var postfixExpression = mutableListOf<MathValue>()
