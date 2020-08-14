@@ -1,8 +1,8 @@
 # SmartCalculator
 Project created with the support of JetBrains Academy as an introduction to Kotlin.
-created by: Michał Czapiewski
-email: czapiewskimk@gmail.com
-github: https://github.com/czpmk
+- created by: Michał Czapiewski
+- email: czapiewskimk@gmail.com
+- github: https://github.com/czpmk
 # Purpose
 The program returns results of basic calculations using integer numbers. It supports 
 expression solving, (e.g. "5 * (2^n) + (-1)^3"), assignment operations (e.g. "a = 5 + n*b") 
@@ -28,5 +28,5 @@ Multiple "+" or "-" symbols are supported, and interpreted as follows: "+++...+"
 # Commands
 Following commands can be invoked while the program is running. Please, use
 those in a new line.
-"/exit" - terminate the program
-"/help" - display a help message
+- "/exit" - terminate the program
+- "/help" - display a help message
