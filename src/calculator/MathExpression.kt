@@ -2,10 +2,38 @@ package calculator
 
 class MathExpression(private var newLine: String) {
     private val mathSymbols = listOf("+", "-", "*", "/", "^", "(", ")", "=")
-    private val helpMessage = "The program is a calculator that can return results of basic\n" +
-            "calculations and keep in memory previous inputs, commands, and results.\n" +
-            "Supported action: addition, subtraction.\n" +
-            "Type /exit to exit."
+    private val helpMessage = "# SmartCalculator\n" +
+            "    Project created with the support of JetBrains Academy as an introduction to Kotlin.\n" +
+            "created by: Michał Czapiewski\n" +
+            "email: czapiewskimk@gmail.com\n" +
+            "github: https://github.com/czpmk\n" +
+            "# Purpose\n" +
+            "    The program returns results of basic calculations using integer numbers. It supports \n" +
+            "expression solving, (e.g. \"5 * (2^n) + (-1)^3\"), assignment operations (e.g. \"a = 5 + n*b\") \n" +
+            "and keeps initialized variables in memory. Those can be invoked by typing their name in \n" +
+            "an expression.\n" +
+            "# Available operations:\n" +
+            "(operation; operator)\n" +
+            "- addition: \"+\"\n" +
+            "- subtraction: \"-\" \n" +
+            "- multiplication: \"*\"\n" +
+            "- division: \"/\"\n" +
+            "- exponentietion: \"^\"\n" +
+            "- assignment: \"=\"\n" +
+            "- brackets: \"(\", \")\"\n" +
+            "# Limitations\n" +
+            "    Arguments maximum (minimum) size is not clearly specified. Operations on big Integer \n" +
+            "numbers are supported, although recommended maximum (minimum) size is: 1^18 (1^-18).\n" +
+            "    A number preceded by a \"-\" symbol will only be interpreted as a negative value when\n" +
+            "it is the first argument in an expression or follows \"=\" or \"(\" symbol. It's recommended to \n" +
+            "always enclose negative numbers in parentheses.\n" +
+            "    Multiple \"+\" or \"-\" symbols are supported, and interpreted as follows: \"+++...+\" = \"+\"\n" +
+            "\"---...-\" = \"-\" if there is an odd number of \"-\" symbols, and \"+\" if it is even.\n" +
+            "# Commands\n" +
+            "    Following commands can be invoked while the program is running. Please, use\n" +
+            "those in a new line.\n" +
+            "\"/exit\" - terminate the program\n" +
+            "\"/help\" - display a help message"
     private var tempList: MutableList<String>
     private var infixExpression = mutableListOf<MathValue>()
     var postfixExpression = mutableListOf<MathValue>()
@@ -117,7 +145,7 @@ class MathExpression(private var newLine: String) {
                         println("Bye!")
                     }
                     "help" -> println(helpMessage)
-                    else -> println("Unknown command")
+                    else -> println("Unknown command. Type /help to display help message")
                 }
                 true
             } else {
